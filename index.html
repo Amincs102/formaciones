@@ -372,16 +372,35 @@ function initTrainer() {
         setTimeout(()=>btn.textContent=prev,2000);
       });
     };
+
     document.getElementById('downloadQrBtn').onclick = () => {
-      setTimeout(()=>{
-        const canvas = document.querySelector('#qrcode canvas');
-        if(!canvas){alert('Genera el QR primero rellenando los campos.');return;}
-        const link = document.createElement('a');
-        link.download = (data.title||'qr-evaluacion').replace(/\s+/g,'-').toLowerCase()+'.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      },100);
+      const currentUrl = buildUrl(buildData());
+      const currentData = buildData();
+      // Generate a large hidden QR for download (512x512 for proper scanning)
+      const hiddenDiv = document.createElement('div');
+      hiddenDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:512px;height:512px';
+      document.body.appendChild(hiddenDiv);
+      try {
+        new QRCode(hiddenDiv, {
+          text: currentUrl,
+          width: 512,
+          height: 512,
+          colorDark: AIRBOX_NAVY,
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        setTimeout(() => {
+          const canvas = hiddenDiv.querySelector('canvas');
+          if (!canvas) { alert('Error generando QR. Inténtalo de nuevo.'); document.body.removeChild(hiddenDiv); return; }
+          const link = document.createElement('a');
+          link.download = 'QR_' + (currentData.title||'evaluacion').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-_]/g,'') + '.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          document.body.removeChild(hiddenDiv);
+        }, 300);
+      } catch(e) { document.body.removeChild(hiddenDiv); alert('Error: ' + e.message); }
     };
+
     document.getElementById('previewBtn').onclick = ()=>window.open(buildUrl(buildData()),'_blank');
   }
 
@@ -502,8 +521,14 @@ function initStudent(data) {
       <p style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:1rem">Correcciones</p>
       ${review}
       <div class="divider-line"></div>
-      <button class="btn-main" id="satBtn">Continuar → Encuesta de satisfacción</button>
-      ${!passed?`<p style="font-size:12px;color:var(--text2);text-align:center;margin-top:.75rem">Nota mínima: ${data.passScore}%. Podrás volver a intentarlo después de la encuesta.</p>`:''}
+      ${passed
+        ? `<button class="btn-main" id="satBtn">Continuar → Encuesta y diploma</button>`
+        : `<div style="background:var(--red-bg);border:1px solid #f5c0b8;border-radius:10px;padding:16px;text-align:center;margin-bottom:1rem">
+            <p style="font-size:14px;font-weight:500;color:var(--red);margin-bottom:4px">No has alcanzado la nota mínima</p>
+            <p style="font-size:13px;color:var(--red)">Necesitas un ${data.passScore}% para obtener el diploma. Repasa el material e inténtalo de nuevo.</p>
+           </div>
+           <button class="btn-main" id="retryBtn">🔄 Repetir evaluación</button>`
+      }
     </div>`;
   }
 
