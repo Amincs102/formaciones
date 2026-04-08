@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Evaluación</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #0d1b2a; --gold: #c9a84c; --gold-pale: #f5ecd2;
+  --bg: #f8f7f4; --surface: #ffffff; --surface2: #f1efe9;
+  --border: #e0ddd4; --border2: #c8c4b8;
+  --text: #1a1814; --text2: #5a564e; --text3: #9a9690;
+  --green: #1a7a4a; --green-bg: #eaf6f0;
+  --red: #c0392b; --red-bg: #fdecea;
+  --radius: 10px; --radius-lg: 14px;
+}
+html { font-size: 16px; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* ─── TRAINER ─── */
+#trainer { max-width: 780px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+.trainer-header { display: flex; align-items: center; gap: 14px; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+.trainer-header .logo-mark { width: 44px; height: 44px; background: var(--navy); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.trainer-header h1 { font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 500; }
+.trainer-header p { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.trainer-header .badge { margin-left: auto; background: var(--navy); color: #fff; font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; flex-shrink: 0; }
+.section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; }
+.section-title { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.span2 { grid-column: span 2; }
+label { font-size: 12px; font-weight: 500; color: var(--text2); letter-spacing: 0.3px; }
+input[type="text"], input[type="number"], input[type="url"], input[type="email"], textarea, select {
+  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text);
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; outline: none; transition: border-color 0.15s, background 0.15s; width: 100%;
+}
+input:focus, textarea:focus { border-color: var(--navy); background: var(--surface); }
+textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+.q-list { display: flex; flex-direction: column; gap: 1rem; }
+.q-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.q-card-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface2); cursor: pointer; user-select: none; }
+.q-card-header .q-num { width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.q-card-header .q-preview { flex: 1; font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-card-header .q-actions { display: flex; gap: 6px; align-items: center; }
+.btn-icon { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; color: var(--text2); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+.btn-icon:hover { border-color: var(--border2); background: var(--surface); }
+.btn-icon.danger:hover { border-color: var(--red); color: var(--red); }
+.chevron { transition: transform 0.2s; color: var(--text3); font-size: 11px; }
+.q-card.open .chevron { transform: rotate(180deg); }
+.q-card-body { display: none; padding: 14px; border-top: 1px solid var(--border); background: var(--surface); }
+.q-card.open .q-card-body { display: block; }
+.opts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.opt-row { display: flex; align-items: center; gap: 8px; }
+.opt-row input[type="radio"] { width: 16px; height: 16px; accent-color: var(--navy); cursor: pointer; flex-shrink: 0; }
+.opt-label { width: 20px; font-size: 12px; font-weight: 500; color: var(--text3); flex-shrink: 0; text-align: center; }
+.opt-row input[type="text"] { flex: 1; padding: 8px 10px; font-size: 13px; }
+.correct-hint { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+.correct-hint span { color: var(--green); font-weight: 500; }
+.add-q-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: none; border: 1.5px dashed var(--border2); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text2); cursor: pointer; transition: all 0.15s; margin-top: 0.5rem; }
+.add-q-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--surface); }
+.qr-section { background: var(--navy); border-radius: var(--radius-lg); padding: 1.75rem; color: #fff; margin-bottom: 1.25rem; }
+.qr-section-title { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.5); margin-bottom: 1rem; }
+.qr-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+#qrcode { background: #fff; border-radius: 8px; padding: 10px; flex-shrink: 0; min-width: 130px; min-height: 130px; display: flex; align-items: center; justify-content: center; }
+.qr-info { flex: 1; }
+.qr-info h3 { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.qr-info p { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 1rem; line-height: 1.5; }
+.url-box { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: rgba(255,255,255,0.7); word-break: break-all; margin-bottom: 1rem; line-height: 1.4; font-family: monospace; }
+.qr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-white { padding: 9px 16px; background: #fff; color: var(--navy); border: none; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+.btn-white:hover { opacity: 0.88; }
+.btn-ghost { padding: 9px 16px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+.btn-ghost:hover { background: rgba(255,255,255,0.2); }
+.base-url-row { display: flex; gap: 8px; align-items: center; margin-bottom: 0.75rem; }
+.base-url-row label { color: rgba(255,255,255,0.6); font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+.base-url-row input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 13px; padding: 8px 12px; border-radius: 7px; }
+.base-url-row input::placeholder { color: rgba(255,255,255,0.35); }
+.base-url-row input:focus { outline: none; border-color: rgba(255,255,255,0.5); }
+.alert-info { background: #e8f4fd; border: 1px solid #b8d9f5; border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: #1a5276; line-height: 1.5; margin-bottom: 1.25rem; }
+.alert-warning { background: #fef9e7; border: 1px solid #f9ca6b; border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: #7d6608; line-height: 1.5; margin-bottom: 1.25rem; }
+
+/* ─── STUDENT ─── */
+#student { max-width: 620px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.student-header { text-align: center; margin-bottom: 2rem; }
+.student-header .shield { width: 52px; height: 52px; margin: 0 auto 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.student-header .org-tag { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text3); }
+.scard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1rem; }
+.scard h1 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; line-height: 1.3; margin-bottom: 0.4rem; }
+.scard .desc { font-size: 14px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.6; }
+.field-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text3); display: block; margin-bottom: 6px; }
+.name-input { width: 100%; padding: 13px 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; transition: border-color 0.15s; margin-bottom: 1rem; }
+.name-input:focus { border-color: var(--navy); background: var(--surface); }
+.progress-wrap { margin-bottom: 1.5rem; }
+.progress-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--navy); border-radius: 2px; transition: width 0.4s ease; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-top: 6px; }
+.q-num-label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.q-text-s { font-size: 17px; font-weight: 500; line-height: 1.5; color: var(--text); margin-bottom: 1.25rem; }
+.opt-s { display: block; width: 100%; text-align: left; padding: 12px 16px; margin-bottom: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s; line-height: 1.4; }
+.opt-s:hover { border-color: var(--border2); background: var(--surface); }
+.opt-s.selected { border-color: var(--navy); background: var(--surface); font-weight: 500; }
+.opt-s.correct { border-color: var(--green); background: var(--green-bg); color: var(--green); font-weight: 500; }
+.opt-s.wrong { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+.opt-s:disabled { cursor: default; }
+.explanation-s { font-size: 13px; color: var(--text2); background: var(--surface2); border-left: 3px solid var(--border2); border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 12px 0; line-height: 1.6; }
+.score-center { text-align: center; margin: 1.5rem 0; }
+.score-big { font-family: 'Playfair Display', serif; font-size: 56px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+.score-big.pass { color: var(--green); }
+.score-big.fail { color: var(--red); }
+.score-sub { font-size: 13px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+.verdict { display: inline-block; margin: 0.75rem 0 1rem; padding: 5px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+.verdict.pass { background: var(--green-bg); color: var(--green); }
+.verdict.fail { background: var(--red-bg); color: var(--red); }
+.review-block { border-left: 2px solid var(--border); padding: 10px 14px; margin-bottom: 10px; font-size: 13px; }
+.review-block.ok { border-color: var(--green); }
+.review-block.ko { border-color: var(--red); }
+.review-q-text { font-weight: 500; color: var(--text); margin-bottom: 4px; line-height: 1.4; }
+.review-ans-row { color: var(--text2); }
+.ans-ok { color: var(--green); font-weight: 500; }
+.ans-ko { color: var(--red); text-decoration: line-through; margin-right: 4px; }
+.cert-outer { border: 1.5px solid var(--gold); border-radius: var(--radius-lg); padding: 2.5rem 2rem; text-align: center; background: var(--surface); margin-bottom: 1rem; position: relative; }
+.cert-outer::before { content: ''; position: absolute; inset: 6px; border: 0.5px solid var(--gold-pale); border-radius: 10px; pointer-events: none; }
+.cert-eyebrow { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--text3); margin-bottom: 1.25rem; }
+.cert-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 0.5rem; }
+.cert-divider { width: 50px; height: 1.5px; background: var(--gold); margin: 1.25rem auto; }
+.cert-certifies { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem; }
+.cert-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 600; color: var(--navy); margin-bottom: 0.25rem; }
+.cert-course-name { font-size: 14px; font-weight: 500; color: var(--text); margin: 0.5rem 0 0.25rem; }
+.cert-subtitle-text { font-size: 13px; color: var(--text2); }
+.cert-nota { font-size: 14px; font-weight: 500; color: var(--green); margin: 0.75rem 0; }
+.cert-date { font-size: 11px; color: var(--text3); letter-spacing: 1px; margin-top: 1rem; }
+.btn-main { width: 100%; padding: 14px; background: var(--navy); color: #fff; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+.btn-main:hover { opacity: 0.85; }
+.btn-main:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-sec { width: 100%; padding: 12px; background: none; color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; margin-top: 0.75rem; transition: background 0.15s; }
+.btn-sec:hover { background: var(--surface2); }
+.divider-line { height: 1px; background: var(--border); margin: 1.25rem 0; }
+.sent-badge { display: flex; align-items: center; gap: 8px; background: var(--green-bg); border: 1px solid #a8dfc4; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--green); margin-top: 0.75rem; }
+.sending-badge { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--text2); margin-top: 0.75rem; }
+.hidden { display: none !important; }
+.fade-in { animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 540px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .span2 { grid-column: span 1; }
+  .opts-grid { grid-template-columns: 1fr; }
+  .qr-layout { flex-direction: column; align-items: center; }
+}
+</style>
+</head>
+<body>
+
+<div id="trainer">
+  <div class="trainer-header">
+    <div class="logo-mark">📋</div>
+    <div>
+      <h1>Panel del Formador</h1>
+      <p>Configura la autoevaluación y genera el QR para tus alumnos</p>
+    </div>
+    <div class="badge">Formador</div>
+  </div>
+
+  <div class="alert-info">
+    💡 <strong>Cómo funciona:</strong> Rellena la información, añade las preguntas y configura el webhook de n8n. Al final genera el QR para tu presentación. Los alumnos lo escanean, hacen el test y tú recibes un email con los resultados.
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">Información de la formación</div>
+    <div class="form-grid">
+      <div class="form-group span2">
+        <label for="f-title">Título de la formación *</label>
+        <input type="text" id="f-title" placeholder="Ej. Prevención de Riesgos Laborales — Nivel básico" />
+      </div>
+      <div class="form-group span2">
+        <label for="f-subtitle">Descripción / Subtítulo</label>
+        <input type="text" id="f-subtitle" placeholder="Ej. Módulo 1: Introducción a la seguridad en el trabajo" />
+      </div>
+      <div class="form-group">
+        <label for="f-org">Empresa / Organización</label>
+        <input type="text" id="f-org" placeholder="Ej. AIRBOX · Formación Interna" />
+      </div>
+      <div class="form-group">
+        <label for="f-pass">Nota mínima para aprobar (%)</label>
+        <input type="number" id="f-pass" min="1" max="100" value="70" />
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">Preguntas de la evaluación</div>
+    <div class="q-list" id="qList"></div>
+    <button class="add-q-btn" id="addQBtn">+ Añadir pregunta</button>
+  </div>
+
+  <div class="section-card">
+    <div class="section-title">Notificaciones al formador</div>
+    <div class="form-grid">
+      <div class="form-group span2">
+        <label for="f-webhook">URL del webhook de n8n</label>
+        <input type="url" id="f-webhook" placeholder="https://tu-n8n.com/webhook/evaluacion" />
+      </div>
+      <div class="form-group span2">
+        <label for="f-trainer-email">Tu email (formador) — se incluye en el payload para n8n</label>
+        <input type="email" id="f-trainer-email" placeholder="formador@empresa.com" />
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:0.75rem;line-height:1.5;">Si dejas el webhook vacío el quiz funciona igualmente, pero no se enviarán resultados. Importa el archivo <strong>n8n-evaluaciones.json</strong> en tu n8n para que todo funcione automáticamente.</p>
+  </div>
+
+  <div class="qr-section">
+    <div class="qr-section-title">Generar código QR</div>
+    <div class="base-url-row">
+      <label>URL del archivo:</label>
+      <input type="url" id="baseUrl" placeholder="https://tudominio.com/evaluacion.html" />
+    </div>
+    <div class="qr-layout">
+      <div id="qrcode">
+        <span style="color:#ccc;font-size:12px;text-align:center;padding:10px;">Rellena los campos<br>para generar el QR</span>
+      </div>
+      <div class="qr-info">
+        <h3 id="qrTrainingTitle">Tu formación</h3>
+        <p id="qrMeta">Configura el título y las preguntas para generar el QR.</p>
+        <div class="url-box" id="urlBox">—</div>
+        <div class="qr-btns">
+          <button class="btn-white" id="copyUrlBtn">Copiar enlace</button>
+          <button class="btn-ghost" id="previewBtn">Vista previa alumno ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="student" class="hidden"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const encodedData = params.get('d');
+
+if (encodedData) {
+  document.getElementById('trainer').classList.add('hidden');
+  document.getElementById('student').classList.remove('hidden');
+  try {
+    const data = JSON.parse(atob(decodeURIComponent(encodedData)));
+    initStudent(data);
+  } catch(e) {
+    document.getElementById('student').innerHTML = '<div style="text-align:center;padding:3rem;color:#c0392b">Error al cargar la evaluación. Escanea el QR de nuevo.</div>';
+  }
+} else {
+  initTrainer();
+}
+
+/* ═══════════════════ TRAINER ═══════════════════ */
+function initTrainer() {
+  document.getElementById('baseUrl').value = window.location.href.split('?')[0];
+  let questions = [{ q: '', opts: ['', '', '', ''], correct: 0, exp: '', _open: true }];
+
+  function renderQuestions() {
+    const list = document.getElementById('qList');
+    list.innerHTML = questions.map((q, i) => `
+      <div class="q-card${q._open ? ' open' : ''}" data-qi="${i}">
+        <div class="q-card-header" onclick="toggleQ(${i})">
+          <div class="q-num">${i+1}</div>
+          <div class="q-preview">${q.q || 'Pregunta sin texto...'}</div>
+          <div class="q-actions">
+            ${questions.length > 1 ? `<button class="btn-icon danger" onclick="event.stopPropagation();deleteQ(${i})">Eliminar</button>` : ''}
+            <span class="chevron">▼</span>
+          </div>
+        </div>
+        <div class="q-card-body">
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Texto de la pregunta *</label>
+            <textarea rows="2" placeholder="¿Cuál de las siguientes opciones es correcta?" oninput="updateQ(${i},'q',this.value)">${q.q}</textarea>
+          </div>
+          <div class="correct-hint">Selecciona con el círculo la opción <span>correcta</span></div>
+          <div class="opts-grid">
+            ${q.opts.map((o, j) => `
+              <div class="opt-row">
+                <input type="radio" name="correct_${i}" value="${j}" ${q.correct===j?'checked':''} onchange="updateQ(${i},'correct',${j})" title="Marcar como correcta">
+                <span class="opt-label">${'ABCD'[j]}</span>
+                <input type="text" placeholder="Opción ${j+1}" value="${o}" oninput="updateQ(${i},'opt${j}',this.value)">
+              </div>
+            `).join('')}
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label>Explicación (se muestra al corregir)</label>
+            <textarea rows="2" placeholder="Explica por qué esta es la respuesta correcta..." oninput="updateQ(${i},'exp',this.value)">${q.exp}</textarea>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    updateQR();
+  }
+
+  window.toggleQ = i => { questions[i]._open = !questions[i]._open; renderQuestions(); };
+  window.deleteQ = i => { if (questions.length <= 1) return; questions.splice(i, 1); renderQuestions(); };
+  window.updateQ = (i, field, val) => {
+    if (field === 'q') questions[i].q = val;
+    else if (field === 'exp') questions[i].exp = val;
+    else if (field === 'correct') questions[i].correct = parseInt(val);
+    else if (field.startsWith('opt')) questions[i].opts[parseInt(field.replace('opt',''))] = val;
+    updateQR();
+  };
+
+  document.getElementById('addQBtn').addEventListener('click', () => {
+    questions.push({ q: '', opts: ['', '', '', ''], correct: 0, exp: '', _open: true });
+    renderQuestions();
+  });
+
+  ['f-title','f-subtitle','f-org','f-pass','f-webhook','f-trainer-email','baseUrl'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateQR);
+  });
+
+  function buildData() {
+    return {
+      title: document.getElementById('f-title').value || 'Autoevaluación',
+      subtitle: document.getElementById('f-subtitle').value,
+      org: document.getElementById('f-org').value,
+      passScore: parseInt(document.getElementById('f-pass').value) || 70,
+      webhook: document.getElementById('f-webhook').value,
+      trainerEmail: document.getElementById('f-trainer-email').value,
+      questions: questions.map(({q, opts, correct, exp}) => ({q, opts, correct, exp}))
+    };
+  }
+  function buildUrl(data) {
+    const base = document.getElementById('baseUrl').value.trim() || window.location.href.split('?')[0];
+    return base + '?d=' + encodeURIComponent(btoa(JSON.stringify(data)));
+  }
+
+  function updateQR() {
+    const data = buildData();
+    const url = buildUrl(data);
+    document.getElementById('qrTrainingTitle').textContent = data.title;
+    document.getElementById('qrMeta').textContent = `${data.questions.length} pregunta(s) · Mínimo ${data.passScore}% · ${data.webhook ? 'Webhook configurado ✓' : 'Sin webhook'}`;
+    document.getElementById('urlBox').textContent = url.length > 120 ? url.substring(0,120)+'…' : url;
+    const qrcDiv = document.getElementById('qrcode');
+    qrcDiv.innerHTML = '';
+    try {
+      new QRCode(qrcDiv, { text: url, width: 130, height: 130, colorDark: '#0d1b2a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) {}
+    document.getElementById('copyUrlBtn').onclick = () => {
+      navigator.clipboard.writeText(buildUrl(buildData())).then(() => {
+        const btn = document.getElementById('copyUrlBtn');
+        const prev = btn.textContent; btn.textContent = '¡Copiado!';
+        setTimeout(() => btn.textContent = prev, 2000);
+      });
+    };
+    document.getElementById('previewBtn').onclick = () => window.open(buildUrl(buildData()), '_blank');
+  }
+
+  renderQuestions();
+}
+
+/* ═══════════════════ STUDENT ═══════════════════ */
+function initStudent(data) {
+  const app = document.getElementById('student');
+  let state = { screen: 'start', name: '', email: '', current: 0, answers: [], selected: null, revealed: false, startTime: null };
+
+  function getScore() {
+    return Math.round((state.answers.filter((a,i) => a === data.questions[i].correct).length / data.questions.length) * 100);
+  }
+  function getCorrectCount() {
+    return state.answers.filter((a,i) => a === data.questions[i].correct).length;
+  }
+  function getDuration() {
+    if (!state.startTime) return 0;
+    return Math.round((Date.now() - state.startTime) / 60000);
+  }
+
+  async function sendResults() {
+    if (!data.webhook) return;
+    const score = getScore();
+    const passed = score >= data.passScore;
+    const now = new Date();
+    const payload = {
+      nombre: state.name,
+      email: state.email,
+      formacion: data.title,
+      subtitulo: data.subtitle || '',
+      org: data.org || '',
+      nota: score,
+      aprobado: passed,
+      correctas: getCorrectCount(),
+      total: data.questions.length,
+      umbral: data.passScore,
+      duracion_minutos: getDuration(),
+      fecha: now.toLocaleDateString('es-ES'),
+      hora: now.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}),
+      trainerEmail: data.trainerEmail || '',
+      respuestas: data.questions.map((q, i) => ({
+        numero: i + 1,
+        pregunta: q.q,
+        respondido: q.opts[state.answers[i]] || '—',
+        correcto: q.opts[q.correct],
+        ok: state.answers[i] === q.correct,
+        explicacion: q.exp || ''
+      }))
+    };
+    try {
+      await fetch(data.webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return true;
+    } catch(e) { return false; }
+  }
+
+  function render() {
+    document.title = data.title || 'Evaluación';
+    const screens = { start: renderStart, quiz: renderQuiz, results: renderResults, certificate: renderCertificate };
+    app.innerHTML = screens[state.screen]();
+    app.classList.add('fade-in');
+    attachEvents();
+  }
+
+  function header(icon) {
+    return `<div class="student-header"><div class="shield">${icon}</div><div class="org-tag">${data.org || ''}</div></div>`;
+  }
+
+  function renderStart() {
+    return header('📋') + `
+    <div class="scard">
+      <h1>${data.title}</h1>
+      ${data.subtitle ? `<p class="desc">${data.subtitle}</p>` : ''}
+      <p class="desc">${data.questions.length} preguntas · Nota mínima para certificado: ${data.passScore}%</p>
+      <span class="field-label">Tu nombre completo *</span>
+      <input class="name-input" id="nameIn" type="text" placeholder="Ej. María García López" value="${state.name}" autocomplete="name">
+      <span class="field-label">Tu email</span>
+      <input class="name-input" id="emailIn" type="email" placeholder="maria@email.com" value="${state.email}" autocomplete="email" style="margin-bottom:1.25rem">
+      <button class="btn-main" id="startBtn" ${!state.name.trim()?'disabled':''}>Comenzar evaluación</button>
+    </div>
+    <p style="text-align:center;font-size:12px;color:var(--text3);margin-top:1rem">Al finalizar verás las correcciones y, si apruebas, podrás descargar tu certificado.</p>`;
+  }
+
+  function renderQuiz() {
+    const q = data.questions[state.current];
+    const pct = (state.current / data.questions.length) * 100;
+    const letters = 'ABCD';
+    const opts = q.opts.map((o,i) => {
+      let cls = 'opt-s';
+      if (state.revealed) {
+        if (i === q.correct) cls += ' correct';
+        else if (i === state.selected) cls += ' wrong';
+      } else if (i === state.selected) cls += ' selected';
+      return `<button class="${cls}" data-idx="${i}" ${state.revealed?'disabled':''}><strong>${letters[i]}.</strong> ${o}</button>`;
+    }).join('');
+    const exp = state.revealed && q.exp ? `<div class="explanation-s"><strong>Explicación:</strong> ${q.exp}</div>` : '';
+    const isLast = state.current === data.questions.length - 1;
+    return header('✏️') + `
+    <div class="scard">
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="progress-meta"><span>Pregunta ${state.current+1} de ${data.questions.length}</span><span>${Math.round(pct)}% completado</span></div>
+      </div>
+      <div class="q-num-label">Pregunta ${state.current+1}</div>
+      <div class="q-text-s">${q.q}</div>
+      ${opts}
+      ${exp}
+      ${!state.revealed && state.selected !== null ? `<button class="btn-main" id="confirmBtn">Confirmar respuesta</button>` : ''}
+      ${state.revealed ? `<button class="btn-main" id="nextBtn">${isLast ? 'Ver resultados' : 'Siguiente pregunta'}</button>` : ''}
+    </div>`;
+  }
+
+  function renderResults() {
+    const score = getScore();
+    const passed = score >= data.passScore;
+    const review = data.questions.map((q,i) => {
+      const ok = state.answers[i] === q.correct;
+      return `<div class="review-block ${ok?'ok':'ko'}">
+        <div class="review-q-text">${ok?'✓':'✗'} ${q.q}</div>
+        <div class="review-ans-row">
+          ${ok
+            ? `<span class="ans-ok">Correcto: ${q.opts[q.correct]}</span>`
+            : `<span class="ans-ko">${q.opts[state.answers[i]]??'Sin respuesta'}</span> → <span class="ans-ok">${q.opts[q.correct]}</span>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+    return header(passed?'⭐':'📖') + `
+    <div class="scard">
+      <div class="score-center">
+        <div class="score-big ${passed?'pass':'fail'}">${score}%</div>
+        <div class="score-sub">${getCorrectCount()} / ${data.questions.length} correctas</div>
+        <div class="verdict ${passed?'pass':'fail'}">${passed?'Aprobado':'No aprobado'}</div>
+      </div>
+      <div id="sendStatus" class="sending-badge">⏳ Enviando resultados al formador...</div>
+      <div class="divider-line"></div>
+      <p style="font-size:14px;font-weight:500;color:var(--text2);margin-bottom:1rem">Correcciones</p>
+      ${review}
+      <div class="divider-line"></div>
+      ${passed ? `<button class="btn-main" id="certBtn">Ver y descargar certificado</button>` : `<p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">Nota mínima: ${data.passScore}%. Repasa el material y vuelve a intentarlo.</p>`}
+      <button class="btn-sec" id="retryBtn">Volver a intentarlo</button>
+    </div>`;
+  }
+
+  function renderCertificate() {
+    const score = getScore();
+    const today = new Date().toLocaleDateString('es-ES', {day:'numeric', month:'long', year:'numeric'});
+    return header('🏅') + `
+    <div class="cert-outer">
+      <div class="cert-eyebrow">Certificado de formación</div>
+      <div class="cert-title">${data.title}</div>
+      <div class="cert-divider"></div>
+      <div class="cert-certifies">Se certifica que</div>
+      <div class="cert-name">${state.name}</div>
+      <div class="cert-subtitle-text">ha superado satisfactoriamente la formación:</div>
+      ${data.subtitle ? `<div class="cert-course-name">${data.subtitle}</div>` : ''}
+      <div class="cert-nota">Calificación obtenida: ${score}%</div>
+      <div class="cert-divider"></div>
+      <div class="cert-date">${data.org ? data.org + ' · ' : ''}${today}</div>
+    </div>
+    <button class="btn-main" id="printBtn">Imprimir / Guardar certificado</button>
+    <button class="btn-sec" id="backResultsBtn">Volver a los resultados</button>`;
+  }
+
+  function attachEvents() {
+    const nameIn = document.getElementById('nameIn');
+    const emailIn = document.getElementById('emailIn');
+    if (nameIn) {
+      nameIn.addEventListener('input', e => { state.name = e.target.value; document.getElementById('startBtn').disabled = !state.name.trim(); });
+      nameIn.addEventListener('keydown', e => { if(e.key==='Enter' && state.name.trim()) startQ(); });
+    }
+    if (emailIn) emailIn.addEventListener('input', e => { state.email = e.target.value; });
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) startBtn.onclick = startQ;
+
+    app.querySelectorAll('.opt-s').forEach(btn => {
+      btn.addEventListener('click', () => { if (!state.revealed) { state.selected = parseInt(btn.dataset.idx); render(); } });
+    });
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (confirmBtn) confirmBtn.onclick = () => { state.revealed = true; render(); };
+    const nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) nextBtn.onclick = () => {
+      state.answers.push(state.selected);
+      state.current++; state.selected = null; state.revealed = false;
+      if (state.current >= data.questions.length) {
+        state.screen = 'results';
+        render();
+        // Send to webhook after render
+        sendResults().then(ok => {
+          const el = document.getElementById('sendStatus');
+          if (el) {
+            if (ok) { el.className = 'sent-badge'; el.innerHTML = '✓ Resultados enviados al formador'; }
+            else if (!data.webhook) { el.style.display = 'none'; }
+            else { el.innerHTML = '⚠️ No se pudieron enviar los resultados'; }
+          }
+        });
+      } else { render(); }
+    };
+
+    const certBtn = document.getElementById('certBtn');
+    if (certBtn) certBtn.onclick = () => { state.screen = 'certificate'; render(); };
+    const retryBtn = document.getElementById('retryBtn');
+    if (retryBtn) retryBtn.onclick = () => {
+      state = { screen: 'start', name: state.name, email: state.email, current: 0, answers: [], selected: null, revealed: false, startTime: null };
+      render();
+    };
+    const backResultsBtn = document.getElementById('backResultsBtn');
+    if (backResultsBtn) backResultsBtn.onclick = () => { state.screen = 'results'; render(); };
+    const printBtn = document.getElementById('printBtn');
+    if (printBtn) printBtn.onclick = () => {
+      const score = getScore();
+      const today = new Date().toLocaleDateString('es-ES', {day:'numeric', month:'long', year:'numeric'});
+      const w = window.open('', '_blank');
+      w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Certificado — ${state.name}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+        <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:40px}.cert{border:2px solid #c9a84c;border-radius:14px;padding:60px 50px;max-width:600px;width:100%;text-align:center;position:relative}.cert::before{content:'';position:absolute;inset:8px;border:0.5px solid #f5ecd2;border-radius:8px}.eyebrow{font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#9a9690;margin-bottom:1.5rem}.ctitle{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#0d1b2a}.divider{width:50px;height:1.5px;background:#c9a84c;margin:1.5rem auto}.certifies{font-size:11px;color:#9a9690;text-transform:uppercase;letter-spacing:2px;margin-bottom:0.5rem}.cname{font-family:'Playfair Display',serif;font-size:34px;font-weight:600;color:#0d1b2a;margin-bottom:0.5rem}.csub{font-size:13px;color:#5a564e}.ccourse{font-size:16px;font-weight:500;color:#0d1b2a;margin:0.5rem 0}.cnota{font-size:14px;font-weight:500;color:#1a7a4a;margin-bottom:1.5rem}.cdate{font-size:11px;color:#9a9690;letter-spacing:1px}@media print{body{padding:0}}</style>
+      </head><body><div class="cert">
+        <div class="eyebrow">Certificado de formación</div>
+        <div class="ctitle">${data.title}</div><div class="divider"></div>
+        <div class="certifies">Se certifica que</div>
+        <div class="cname">${state.name}</div>
+        <div class="csub">ha superado satisfactoriamente la formación:</div>
+        ${data.subtitle ? `<div class="ccourse">${data.subtitle}</div>` : ''}
+        <div class="cnota">Calificación obtenida: ${score}%</div>
+        <div class="divider"></div>
+        <div class="cdate">${data.org ? data.org + ' · ' : ''}${today}</div>
+      </div><script>window.onload=()=>window.print()<\/script></body></html>`);
+      w.document.close();
+    };
+  }
+
+  function startQ() {
+    if (!state.name.trim()) return;
+    state.screen = 'quiz'; state.current = 0; state.answers = [];
+    state.selected = null; state.revealed = false;
+    state.startTime = Date.now();
+    render();
+  }
+
+  render();
+}
+</script>
+</body>
+</html>
