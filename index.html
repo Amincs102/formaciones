@@ -244,6 +244,7 @@ textarea{resize:vertical;min-height:64px;line-height:1.5}
           <button class="btn-white" id="copyUrlBtn">Copiar enlace</button>
           <button class="btn-yellow" id="downloadQrBtn">⬇ Descargar QR</button>
           <button class="btn-ghost" id="previewBtn">Vista previa ↗</button>
+          <button class="btn-ghost" id="shortenUrlBtn">🔗 Acortar URL</button>
         </div>
       </div>
     </div>
@@ -367,66 +368,31 @@ function initTrainer() {
     return base+'?d='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
   }
 
-  let _shortUrlCache = {};
-  let _shortUrlTimer = null;
-
   function updateQR() {
     const data = buildData();
     const url = buildUrl(data);
     document.getElementById('qrTrainingTitle').textContent = data.title;
     document.getElementById('qrMeta').textContent = `${data.questions.length} pregunta(s) · ${data.hours||'—'} horas · Mínimo ${data.passScore}% · ${data.webhook?'Webhook ✓':'Sin webhook'}`;
     document.getElementById('urlBox').textContent = url.length>120?url.substring(0,120)+'…':url;
-
-    // Debounce: wait 800ms after last change before shortening
-    clearTimeout(_shortUrlTimer);
     const qrcDiv = document.getElementById('qrcode');
-    qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:11px;padding:10px;display:block;text-align:center">Generando QR...</span>';
-
-    _shortUrlTimer = setTimeout(async () => {
-      let qrUrl = url;
-      // Only shorten if URL is long
-      if (url.length > 800) {
-        if (_shortUrlCache[url]) {
-          qrUrl = _shortUrlCache[url];
-        } else {
-          try {
-            qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:11px;padding:10px;display:block;text-align:center">Acortando URL...</span>';
-            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
-            if (res.ok) {
-              const short = await res.text();
-              if (short.startsWith('http')) {
-                _shortUrlCache[url] = short;
-                qrUrl = short;
-                document.getElementById('urlBox').textContent = short;
-              }
-            }
-          } catch(e) {
-            // If shortening fails, use original URL
-            qrUrl = url;
-          }
-        }
+    qrcDiv.dataset.qrUrl = url;
+    qrcDiv.innerHTML = '';
+    const previewCanvas = document.createElement('canvas');
+    qrcDiv.appendChild(previewCanvas);
+    QRCode.toCanvas(previewCanvas, url.length > 800 ? url.substring(0,800) : url, {
+      width: 130,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'L'
+    }, function(err) {
+      if (err) {
+        qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-size:11px;padding:10px;display:block;text-align:center">URL larga — usa "Acortar URL"</span>';
       }
-
-      qrcDiv.innerHTML = '';
-      const previewCanvas = document.createElement('canvas');
-      qrcDiv.appendChild(previewCanvas);
-      QRCode.toCanvas(previewCanvas, qrUrl, {
-        width: 130,
-        margin: 2,
-        color: { dark: '#000000', light: '#ffffff' },
-        errorCorrectionLevel: 'L'
-      }, function(err) {
-        if (err) {
-          qrcDiv.innerHTML = '<span style="color:#c0392b;font-size:11px;padding:10px;display:block;text-align:center">Error QR</span>';
-        }
-      });
-
-      // Store short URL for download
-      qrcDiv.dataset.qrUrl = qrUrl;
+    });
 
     document.getElementById('copyUrlBtn').onclick = () => {
-      const shortUrl = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
-      navigator.clipboard.writeText(shortUrl).then(()=>{
+      const url = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
+      navigator.clipboard.writeText(url).then(()=>{
         const btn=document.getElementById('copyUrlBtn');
         const prev=btn.textContent; btn.textContent='¡Copiado!';
         setTimeout(()=>btn.textContent=prev,2000);
@@ -461,6 +427,34 @@ function initTrainer() {
     };
 
     document.getElementById('previewBtn').onclick = ()=>window.open(buildUrl(buildData()),'_blank');
+
+    document.getElementById('shortenUrlBtn').onclick = async () => {
+      const btn = document.getElementById('shortenUrlBtn');
+      const url = buildUrl(buildData());
+      btn.textContent = 'Acortando...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
+        if (res.ok) {
+          const short = await res.text();
+          if (short.startsWith('http')) {
+            document.getElementById('urlBox').textContent = short;
+            document.getElementById('qrcode').dataset.qrUrl = short;
+            const qrcDiv = document.getElementById('qrcode');
+            qrcDiv.innerHTML = '';
+            const c = document.createElement('canvas');
+            qrcDiv.appendChild(c);
+            QRCode.toCanvas(c, short, {width:130, margin:2, color:{dark:'#000000',light:'#ffffff'}, errorCorrectionLevel:'L'}, function(){});
+            btn.textContent = '✓ URL acortada';
+            setTimeout(()=>{ btn.textContent='Acortar URL'; btn.disabled=false; }, 3000);
+            return;
+          }
+        }
+      } catch(e) {}
+      btn.textContent = 'Error — reintenta';
+      btn.disabled = false;
+      setTimeout(()=>btn.textContent='Acortar URL', 2000);
+    };
   }
 
   renderQuestions();
