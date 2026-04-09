@@ -367,29 +367,66 @@ function initTrainer() {
     return base+'?d='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
   }
 
+  let _shortUrlCache = {};
+  let _shortUrlTimer = null;
+
   function updateQR() {
     const data = buildData();
     const url = buildUrl(data);
     document.getElementById('qrTrainingTitle').textContent = data.title;
     document.getElementById('qrMeta').textContent = `${data.questions.length} pregunta(s) · ${data.hours||'—'} horas · Mínimo ${data.passScore}% · ${data.webhook?'Webhook ✓':'Sin webhook'}`;
     document.getElementById('urlBox').textContent = url.length>120?url.substring(0,120)+'…':url;
+
+    // Debounce: wait 800ms after last change before shortening
+    clearTimeout(_shortUrlTimer);
     const qrcDiv = document.getElementById('qrcode');
-    qrcDiv.innerHTML = '';
-    const previewCanvas = document.createElement('canvas');
-    qrcDiv.appendChild(previewCanvas);
-    QRCode.toCanvas(previewCanvas, url, {
-      width: 130,
-      margin: 2,
-      color: { dark: '#000000', light: '#ffffff' },
-      errorCorrectionLevel: 'L'
-    }, function(err) {
-      if (err) {
-        qrcDiv.innerHTML = '<span style="color:#c0392b;font-size:11px;padding:10px;display:block;text-align:center">Error: ' + err + '</span>';
+    qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:11px;padding:10px;display:block;text-align:center">Generando QR...</span>';
+
+    _shortUrlTimer = setTimeout(async () => {
+      let qrUrl = url;
+      // Only shorten if URL is long
+      if (url.length > 800) {
+        if (_shortUrlCache[url]) {
+          qrUrl = _shortUrlCache[url];
+        } else {
+          try {
+            qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:11px;padding:10px;display:block;text-align:center">Acortando URL...</span>';
+            const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
+            if (res.ok) {
+              const short = await res.text();
+              if (short.startsWith('http')) {
+                _shortUrlCache[url] = short;
+                qrUrl = short;
+                document.getElementById('urlBox').textContent = short;
+              }
+            }
+          } catch(e) {
+            // If shortening fails, use original URL
+            qrUrl = url;
+          }
+        }
       }
-    });
+
+      qrcDiv.innerHTML = '';
+      const previewCanvas = document.createElement('canvas');
+      qrcDiv.appendChild(previewCanvas);
+      QRCode.toCanvas(previewCanvas, qrUrl, {
+        width: 130,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'L'
+      }, function(err) {
+        if (err) {
+          qrcDiv.innerHTML = '<span style="color:#c0392b;font-size:11px;padding:10px;display:block;text-align:center">Error QR</span>';
+        }
+      });
+
+      // Store short URL for download
+      qrcDiv.dataset.qrUrl = qrUrl;
 
     document.getElementById('copyUrlBtn').onclick = () => {
-      navigator.clipboard.writeText(buildUrl(buildData())).then(()=>{
+      const shortUrl = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
+      navigator.clipboard.writeText(shortUrl).then(()=>{
         const btn=document.getElementById('copyUrlBtn');
         const prev=btn.textContent; btn.textContent='¡Copiado!';
         setTimeout(()=>btn.textContent=prev,2000);
@@ -397,7 +434,7 @@ function initTrainer() {
     };
 
     document.getElementById('downloadQrBtn').onclick = () => {
-      const currentUrl = buildUrl(buildData());
+      const currentUrl = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
       const currentData = buildData();
       const hiddenDiv = document.createElement('div');
       hiddenDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
