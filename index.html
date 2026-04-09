@@ -764,7 +764,6 @@ function initStudent(data) {
           <div class="meta-row">
             <div class="meta-item"><div class="meta-val pass">${score}%</div><div class="meta-lab">Calificación</div></div>
             ${data.hours?`<div class="meta-item"><div class="meta-val">${data.hours}</div><div class="meta-lab">Duración</div></div>`:''}
-            <div class="meta-item"><div class="meta-val">${getCorrectCount()}/${data.questions.length}</div><div class="meta-lab">Correctas</div></div>
             <div class="meta-item"><div class="meta-val" style="color:${score>=data.passScore?'#1a7a4a':'#c0392b'}">${score>=data.passScore?'✓':'✗'}</div><div class="meta-lab">${score>=data.passScore?'Aprobado':'Completado'}</div></div>
           </div>
           ${data.content?`<div class="content-block"><p>Contenido impartido</p><span>${data.content}</span></div>`:''}
