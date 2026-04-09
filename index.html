@@ -376,7 +376,6 @@ function initTrainer() {
     document.getElementById('downloadQrBtn').onclick = () => {
       const currentUrl = buildUrl(buildData());
       const currentData = buildData();
-      // Generate a large hidden QR for download (512x512 for proper scanning)
       const hiddenDiv = document.createElement('div');
       hiddenDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:512px;height:512px';
       document.body.appendChild(hiddenDiv);
@@ -385,19 +384,29 @@ function initTrainer() {
           text: currentUrl,
           width: 512,
           height: 512,
-          colorDark: AIRBOX_NAVY,
+          colorDark: '#000000',
           colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
+          correctLevel: QRCode.CorrectLevel.L
         });
         setTimeout(() => {
-          const canvas = hiddenDiv.querySelector('canvas');
-          if (!canvas) { alert('Error generando QR. Inténtalo de nuevo.'); document.body.removeChild(hiddenDiv); return; }
+          const qrCanvas = hiddenDiv.querySelector('canvas');
+          if (!qrCanvas) { alert('Error generando QR.'); document.body.removeChild(hiddenDiv); return; }
+          // Draw QR on new canvas with white margin (quiet zone) for Android compatibility
+          const margin = 40;
+          const size = 512;
+          const finalCanvas = document.createElement('canvas');
+          finalCanvas.width = size + margin * 2;
+          finalCanvas.height = size + margin * 2;
+          const ctx = finalCanvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+          ctx.drawImage(qrCanvas, margin, margin, size, size);
           const link = document.createElement('a');
           link.download = 'QR_' + (currentData.title||'evaluacion').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-_]/g,'') + '.png';
-          link.href = canvas.toDataURL('image/png');
+          link.href = finalCanvas.toDataURL('image/png');
           link.click();
           document.body.removeChild(hiddenDiv);
-        }, 300);
+        }, 400);
       } catch(e) { document.body.removeChild(hiddenDiv); alert('Error: ' + e.message); }
     };
 
