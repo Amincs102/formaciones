@@ -457,7 +457,23 @@ function initTrainer() {
     };
   }
 
+  // Precarga del panel desde ?t= (datos comprimidos)
+  try {
+    const tp = new URLSearchParams(window.location.search).get('t');
+    if (tp && typeof LZString !== 'undefined') {
+      const td = JSON.parse(LZString.decompressFromEncodedURIComponent(tp));
+      const set = (id,v)=>{ const el=document.getElementById(id); if(el && v!==undefined && v!=='') el.value=v; };
+      set('f-title',td.title); set('f-subtitle',td.subtitle); set('f-content',td.content);
+      set('f-org',td.org); set('f-hours',td.hours); set('f-trainer-name',td.trainerName);
+      set('f-pass',td.passScore); set('f-webhook',td.webhook); set('f-trainer-email',td.trainerEmail);
+      if (Array.isArray(td.questions) && td.questions.length) {
+        questions = td.questions.map(x=>({q:x.q,opts:x.opts,correct:x.correct,exp:x.exp,_open:false}));
+      }
+    }
+  } catch(e) { console.error('Precarga fallida', e); }
+
   renderQuestions();
+  updateQR();
 }
 
 /* ═══════ STUDENT ═══════ */
