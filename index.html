@@ -261,7 +261,15 @@ const AIRBOX_YELLOW = '#f5d000';
 
 const params = new URLSearchParams(window.location.search);
 const encodedData = params.get('d');
-if (encodedData) {
+const quizId = params.get('q');
+if (quizId) {
+  document.getElementById('trainer').classList.add('hidden');
+  document.getElementById('student').classList.remove('hidden');
+  fetch('quizzes/' + encodeURIComponent(quizId) + '.json', {cache:'no-store'})
+    .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(initStudent)
+    .catch(() => { document.getElementById('student').innerHTML = '<div style="text-align:center;padding:3rem;color:#c0392b">Error al cargar la evaluación. Escanea el QR de nuevo.</div>'; });
+} else if (encodedData) {
   document.getElementById('trainer').classList.add('hidden');
   document.getElementById('student').classList.remove('hidden');
   try {
@@ -379,6 +387,16 @@ function initTrainer() {
     qrcDiv.innerHTML = '';
     const previewCanvas = document.createElement('canvas');
     qrcDiv.appendChild(previewCanvas);
+    // Acortado automático (con espera de 1,5 s tras el último cambio) si la URL es larga
+    clearTimeout(window.__autoShortT);
+    if (url.length > 600 && data.questions.some(q=>q.q)) {
+      window.__autoShortT = setTimeout(async () => {
+        try {
+          const short = await shortenUrl(url);
+          if (buildUrl(buildData()) === url) showShortQR(short);   // solo si no ha cambiado mientras tanto
+        } catch(e) {}
+      }, 1500);
+    }
     QRCode.toCanvas(previewCanvas, url.length > 800 ? url.substring(0,800) : url, {
       width: 130,
       margin: 2,
@@ -386,7 +404,7 @@ function initTrainer() {
       errorCorrectionLevel: 'L'
     }, function(err) {
       if (err) {
-        qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-size:11px;padding:10px;display:block;text-align:center">URL larga — usa "Acortar URL"</span>';
+        qrcDiv.innerHTML = '<span style="color:rgba(255,255,255,0.5);font-size:11px;padding:10px;display:block;text-align:center">Acortando URL…</span>';
       }
     });
 
@@ -428,32 +446,64 @@ function initTrainer() {
 
     document.getElementById('previewBtn').onclick = ()=>window.open(buildUrl(buildData()),'_blank');
 
+    // ── Acortador: spoo.me (admite CORS) → is.gd → TinyURL ──
+    const shortCache = {};
+    async function shortenUrl(url) {
+      if (shortCache[url]) return shortCache[url];
+      const services = [
+        async () => {
+          const r = await fetch('https://spoo.me/', {method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+            body:'url='+encodeURIComponent(url)});
+          if (!r.ok) throw new Error('spoo '+r.status);
+          const j = await r.json();
+          return (j.short_url||'').replace(/^http:\/\//,'https://');
+        },
+        async () => {
+          const r = await fetch('https://is.gd/create.php?format=simple&url='+encodeURIComponent(url));
+          if (!r.ok) throw new Error('isgd '+r.status);
+          return (await r.text()).trim();
+        },
+        async () => {
+          const r = await fetch('https://tinyurl.com/api-create.php?url='+encodeURIComponent(url));
+          if (!r.ok) throw new Error('tinyurl '+r.status);
+          return (await r.text()).trim();
+        }
+      ];
+      for (const svc of services) {
+        try {
+          const short = await svc();
+          if (short && /^https?:\/\//.test(short)) { shortCache[url] = short; return short; }
+        } catch(e) { console.warn('Acortador falló:', e.message); }
+      }
+      throw new Error('Ningún acortador disponible');
+    }
+
+    function showShortQR(short) {
+      document.getElementById('urlBox').textContent = short;
+      const qrcDiv = document.getElementById('qrcode');
+      qrcDiv.dataset.qrUrl = short;
+      qrcDiv.innerHTML = '';
+      const c = document.createElement('canvas');
+      qrcDiv.appendChild(c);
+      QRCode.toCanvas(c, short, {width:130, margin:2, color:{dark:'#000000',light:'#ffffff'}, errorCorrectionLevel:'M'}, function(){});
+    }
+
     document.getElementById('shortenUrlBtn').onclick = async () => {
       const btn = document.getElementById('shortenUrlBtn');
       const url = buildUrl(buildData());
       btn.textContent = 'Acortando...';
       btn.disabled = true;
       try {
-        const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(url));
-        if (res.ok) {
-          const short = await res.text();
-          if (short.startsWith('http')) {
-            document.getElementById('urlBox').textContent = short;
-            document.getElementById('qrcode').dataset.qrUrl = short;
-            const qrcDiv = document.getElementById('qrcode');
-            qrcDiv.innerHTML = '';
-            const c = document.createElement('canvas');
-            qrcDiv.appendChild(c);
-            QRCode.toCanvas(c, short, {width:130, margin:2, color:{dark:'#000000',light:'#ffffff'}, errorCorrectionLevel:'L'}, function(){});
-            btn.textContent = '✓ URL acortada';
-            setTimeout(()=>{ btn.textContent='Acortar URL'; btn.disabled=false; }, 3000);
-            return;
-          }
-        }
-      } catch(e) {}
-      btn.textContent = 'Error — reintenta';
-      btn.disabled = false;
-      setTimeout(()=>btn.textContent='Acortar URL', 2000);
+        const short = await shortenUrl(url);
+        showShortQR(short);
+        btn.textContent = '✓ URL acortada';
+        setTimeout(()=>{ btn.textContent='Acortar URL'; btn.disabled=false; }, 3000);
+      } catch(e) {
+        btn.textContent = 'Error — reintenta';
+        btn.disabled = false;
+        setTimeout(()=>btn.textContent='Acortar URL', 2000);
+      }
     };
   }
 
