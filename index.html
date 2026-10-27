@@ -387,15 +387,19 @@ function initTrainer() {
     qrcDiv.innerHTML = '';
     const previewCanvas = document.createElement('canvas');
     qrcDiv.appendChild(previewCanvas);
-    // Acortado automático (con espera de 1,5 s tras el último cambio) si la URL es larga
+    // Acortado automático (3 s tras el último cambio) si la URL es larga
     clearTimeout(window.__autoShortT);
     if (url.length > 600 && data.questions.some(q=>q.q)) {
       window.__autoShortT = setTimeout(async () => {
         try {
-          const short = await shortenUrl(url);
+          const short = await ensureShort(url, msg => {
+            if (buildUrl(buildData()) === url) document.getElementById('urlBox').textContent = msg;
+          });
           if (buildUrl(buildData()) === url) showShortQR(short);   // solo si no ha cambiado mientras tanto
-        } catch(e) {}
-      }, 1500);
+        } catch(e) {
+          if (buildUrl(buildData()) === url) document.getElementById('urlBox').textContent = 'No se pudo acortar — pulsa "Acortar URL"';
+        }
+      }, 3000);
     }
     QRCode.toCanvas(previewCanvas, url.length > 800 ? url.substring(0,800) : url, {
       width: 130,
@@ -417,8 +421,22 @@ function initTrainer() {
       });
     };
 
-    document.getElementById('downloadQrBtn').onclick = () => {
-      const currentUrl = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
+    document.getElementById('downloadQrBtn').onclick = async () => {
+      const dlBtn = document.getElementById('downloadQrBtn');
+      let currentUrl = document.getElementById('qrcode').dataset.qrUrl || buildUrl(buildData());
+      if (currentUrl.length > 600) {
+        // Aún no acortada: acortar antes de generar el QR (un QR con URL larga no se lee bien)
+        const prevText = dlBtn.textContent;
+        dlBtn.disabled = true;
+        try {
+          currentUrl = await ensureShort(currentUrl, msg => { dlBtn.textContent = msg.length > 28 ? 'Esperando límite…' : msg; document.getElementById('urlBox').textContent = msg; });
+          showShortQR(currentUrl);
+        } catch(e) {
+          alert('No se pudo acortar la URL para el QR. Espera un minuto y vuelve a intentarlo.');
+          dlBtn.textContent = prevText; dlBtn.disabled = false; return;
+        }
+        dlBtn.textContent = prevText; dlBtn.disabled = false;
+      }
       const currentData = buildData();
       const hiddenDiv = document.createElement('div');
       hiddenDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
@@ -446,15 +464,33 @@ function initTrainer() {
 
     document.getElementById('previewBtn').onclick = ()=>window.open(buildUrl(buildData()),'_blank');
 
-    // ── Acortador: spoo.me (admite CORS) → is.gd → TinyURL ──
+    // ── Acortador: spoo.me (admite CORS, límite 5/min) → is.gd → TinyURL ──
+    // Caché persistente: el mismo cuestionario no vuelve a gastar una petición al recargar.
     const shortCache = {};
+    try { Object.assign(shortCache, JSON.parse(localStorage.getItem('qr_short_cache')||'{}')); } catch(e) {}
+    function saveShortCache(url, short) {
+      shortCache[url] = short;
+      try {
+        const keys = Object.keys(shortCache);
+        if (keys.length > 40) keys.slice(0, keys.length-40).forEach(k=>delete shortCache[k]);
+        localStorage.setItem('qr_short_cache', JSON.stringify(shortCache));
+      } catch(e) {}
+    }
+    class RateLimitError extends Error { constructor(wait){ super('Límite de acortados'); this.wait = wait; } }
+
     async function shortenUrl(url) {
       if (shortCache[url]) return shortCache[url];
+      let rateWait = 0;
       const services = [
         async () => {
           const r = await fetch('https://spoo.me/', {method:'POST',
             headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
             body:'url='+encodeURIComponent(url)});
+          if (r.status === 429) {
+            const reset = parseInt(r.headers.get('x-ratelimit-reset')||'0',10);
+            rateWait = Math.max(5, Math.min(70, reset ? reset - Math.floor(Date.now()/1000) + 1 : 60));
+            throw new Error('spoo 429');
+          }
           if (!r.ok) throw new Error('spoo '+r.status);
           const j = await r.json();
           return (j.short_url||'').replace(/^http:\/\//,'https://');
@@ -473,10 +509,36 @@ function initTrainer() {
       for (const svc of services) {
         try {
           const short = await svc();
-          if (short && /^https?:\/\//.test(short)) { shortCache[url] = short; return short; }
+          if (short && /^https?:\/\//.test(short)) { saveShortCache(url, short); return short; }
         } catch(e) { console.warn('Acortador falló:', e.message); }
       }
+      if (rateWait) throw new RateLimitError(rateWait);
       throw new Error('Ningún acortador disponible');
+    }
+
+    // Acorta y, si se ha alcanzado el límite, espera y reintenta sola (informando por onStatus)
+    let shortJob = null;
+    function ensureShort(url, onStatus) {
+      if (shortCache[url]) return Promise.resolve(shortCache[url]);
+      if (shortJob && shortJob.url === url) return shortJob.promise;
+      const promise = (async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            onStatus && onStatus('Acortando URL…');
+            return await shortenUrl(url);
+          } catch(e) {
+            if (!(e instanceof RateLimitError)) throw e;
+            for (let s = e.wait; s > 0; s--) {
+              onStatus && onStatus('Límite de 5 acortados/min alcanzado — reintento en '+s+' s…');
+              await new Promise(r=>setTimeout(r,1000));
+            }
+          }
+        }
+        throw new Error('No se pudo acortar');
+      })();
+      shortJob = { url, promise };
+      promise.finally(()=>{ if (shortJob && shortJob.url === url) shortJob = null; });
+      return promise;
     }
 
     function showShortQR(short) {
@@ -492,17 +554,16 @@ function initTrainer() {
     document.getElementById('shortenUrlBtn').onclick = async () => {
       const btn = document.getElementById('shortenUrlBtn');
       const url = buildUrl(buildData());
-      btn.textContent = 'Acortando...';
       btn.disabled = true;
       try {
-        const short = await shortenUrl(url);
+        const short = await ensureShort(url, msg => { btn.textContent = msg.length > 28 ? 'Esperando límite…' : msg; document.getElementById('urlBox').textContent = msg; });
         showShortQR(short);
         btn.textContent = '✓ URL acortada';
-        setTimeout(()=>{ btn.textContent='Acortar URL'; btn.disabled=false; }, 3000);
+        setTimeout(()=>{ btn.textContent='🔗 Acortar URL'; btn.disabled=false; }, 3000);
       } catch(e) {
         btn.textContent = 'Error — reintenta';
         btn.disabled = false;
-        setTimeout(()=>btn.textContent='Acortar URL', 2000);
+        setTimeout(()=>btn.textContent='🔗 Acortar URL', 2500);
       }
     };
   }
